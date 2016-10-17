@@ -1,0 +1,210 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `gss`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+* * *
+
+## Part 1: Data
+About the Data:
+The GSS aims to gather data on contemporary American society in order to monitor and explain trends and constants in attitudes, behaviors, and attributes. to compare the United States to other societies in order to place American society in comparative perspective and develop cross-national models of human society; and to make high-quality data easily accessible to scholars, students, policy makers.(Sources: http://www.norc.org/Research/Projects/Pages/general-social-survey.aspx)
+
+This is **not a randomized experiment**, hence it **cannot be generalized for the total population**, but **association can be drawn** from the given data
+
+There are bias in the data, including the no response, not full outreach 
+
+A glimpse into the different parameters of the data :-
+```{r names_data}
+names(gss)
+```
+
+* * *
+
+## Part 2: Research question
+
+A question which have been very frequently discussed, is the possession of arms policy in the United States, this motivated me to carry this analysis
+Also, there is data available whether people hold arms or not.
+My research question goes into the lines **whether there is a significant difference** in the **different races** (the **proportion of the population**) Specifically for the whites and the blacks.
+
+Idea: A lot of times differences among different races is extensively discussed, owning guns is one unique approach to it
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+For the purpose of analysis first the data is studied for the differenct races, a new vaiable abc is formed, which holds the count of the people in the United States grouped by their race.
+
+```{r abc}
+abc <- gss %>%
+  group_by(race) %>%
+  summarise(rcount = n())
+```
+
+The abc variable :-
+```{r disp_abc}
+abc
+```
+
+Note : The rcount holds the count of the people grouped by their race
+
+Let's have a look at the graph to get a better insight of the population :-
+
+```{r graph_abc}
+ggplot(data = abc, aes(x=race,y=rcount)) + geom_bar(stat = "identity")
+```
+
+This is **particularly expected as there is a larger white population**, hence it will be **better if carry our analysis in the proportions**, in comparison to the total population
+
+
+Next, we make a variable race_owngun which has the the count of the people grouped by their races and the condition that they own a gun
+
+```{r race_owngun}
+race_owngun <- gss %>%
+  group_by(race) %>%
+  filter(owngun=="Yes") %>%
+  summarise(count = n())
+```
+
+the race_owngun variable :
+
+```{r disp_race_owngun}
+race_owngun
+```
+
+Graphical view of the observations :
+
+```{r graph_race_owngun}
+ggplot(data = race_owngun, aes(x=race,y=count)) + geom_bar(stat = "identity")
+```
+
+again, the problem of persists, hence it is better to look at the proportions  
+
+Mutating race_owngun, to include the rcount
+```{r mut1}
+race_owngun <- race_owngun %>%
+  mutate(rcount = abc$rcount)
+```
+
+Now race_owngun looks like :-
+```{r disp_1}
+race_owngun
+```
+
+Now calculating the percentages/proportions :
+```{r mut2}
+race_owngun <- race_owngun %>%
+  mutate(prop = count/rcount)
+```
+
+Now race_owngun looks like :-
+```{r disp_2}
+race_owngun
+```
+
+Now, let's have a look at the graphical representation
+```{r graph_final}
+ggplot(data = race_owngun,aes(race,prop)) + geom_bar(stat = "identity")
+```
+
+again from this what seems, is that evident that **guns are owned more by the white population in comparison to the black and the other population**
+
+Though again **nothing concrete can be said**.
+
+* * *
+
+## Part 4: Inference
+
+Hence, for a concrete statement on the question posed we need to perform **Inference on the collected data** 
+Let us consider the proportions of the white and black that hold a gun
+
+The Inference technique that will be applied is the **Sample distribution of the difference of two proportions** as there are **two categorical variables, both with two levels**
+
+let **p1 be the sample proportion for the Whites**
+let **p2 be the sample proportion for the Blacks**
+
+first we will have to check for the condition to of the inference
+
+**1.Independence :-** it can be safely be assumed that the White and the Black population are **less than 10% of the total population of Whites and Blacks in the United States of America** hence it **can be assumed to be independent.**
+
+**2.Success Faliure Condtiion :-** 
+This has to be calculate for both p1 and p2
+
+n1p1 = 12448>10
+n1(1-p1) =  33902>10
+
+n2p2 = 1269>10
+n2(1-p2) = 6657>10
+
+Hence **this condition also holds**
+
+**Using Hypothesis Testing :**
+
+**Hypothesise :-**
+
+**Ho : There is no difference in the proportion of the White and Black population owning a gun.**
+**Ha : There is a difference in the proportion of the White and Black population owning a gun.**
+
+Let P1 and P2 be the population proportions 
+
+In a hypothesis test involving the Hypothesis P1=P2, 
+**Pooled proportions are used**
+
+Let Pp be the pooled proportion.
+Pp = (12448+1269)/(46350+7926)= 0.2527268
+
+Hence the Standard Error is 
+$$\sqrt{ \frac{Pp(1-Pp)}{n1} + \frac{Pp(1-Pp)}{n2} }$$
+
+Carrying out the inference : For Hypothesis testing
+
+first making a variable xyz such that it contains the race white and black only and the responses for owngun as yes or no only
+
+```{r xyz}
+xyz <- gss %>%
+  filter(race!="Other",!is.na(owngun),owngun!="Refused")
+```
+
+```{r inf_ht}
+inference(data = xyz,y=factor(owngun),x=factor(race),statistic = "proportion",type = "ht",method = "theoretical",success = "Yes",null=0,alternative = "twosided")
+```
+
+As the **P-value is very very small and considerably nothing in front of the significance level 95%** we **reject the null hypothesis**, in favour of the alternative hypothesis that **there is a considerable difference in the population of gun owners in whites and blacks**. And, **Whites are more likely to own a gun**
+
+**Using Confidence Interval :**
+
+Pooled Proportions is not required in the CI calculations for comparing two proportions
+
+The Standard Error will be calculated using :
+
+$$\sqrt{ \frac{p1(1-p1)}{n1} + \frac{p2(1-p2)}{n2} }$$
+
+```{r inf_ci}
+inference(data = xyz, y=factor(owngun),x=factor(race),statistic = "proportion",type = "ci",method = "theoretical",success = "Yes")
+```
+
+We get the same conclusion, the CI does not include the null value that is 0, hence it is 95% confidence level, whites are more likely to hold a gun

@@ -1,0 +1,188 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("/home/saransh/Downloads/Rprograms/Coursera/Intro_to_Prob/Project/_384b2d9eda4b29131fb681b243a7767d_brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+The given dataset is from the annual survey called Behavioral Risk Factor Surveillance System (BRFSS) which is conducted by the Centers for Disease Control and Prevention (CDC). BRFSS is used to collect the prevalence data among the adult U.S. residents regarding their risk behaviors and preventive health practices that can affect their health status.
+The BRFSS uses two samples: one for landline telephone respondents and one for cellular telephone respondents. Since landline telephones are often shared among persons living within a residence, household sampling is used in the landline sample.  Household sampling requires interviewers to collect information on the number of adults living within a residence and then select randomly from all eligible adults. Cellular telephone respondents are weighted as single adult households. (Source - CDC data user guide - http://www.cdc.gov/brfss/data_documentation/pdf/userguidejune2013.pdf)
+
+Random Sampling was not used in the Survey, henceforth it is not a random experiment, therefore causation cannot be inferred from the data, but association can be explained
+
+This is the data from the year 2013, it contains 491775 observations which have 330 different variables or parameters 
+
+```{r}
+names(brfss2013)
+```
+
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+To see the contrast between the income level, amount of sleep and blood pressure among the residents of the United States
+
+Idea :
+Income level are often regaurded as the measure of mental piece and percieved as something that keeps a person happy, let's take into consideration two of these factoes and see if something useful is inferred out of it
+
+**Research quesion 2:**
+To compare the general health and the amount of excercise that the residents of the United States did in the past 30 days
+
+Idea:
+It is often adviced to excercise to remain physically fit, let's try to associate the two from the given data
+
+**Research quesion 3:**
+Compare the level of education in the states of California and Texas
+
+Idea : the basic idea of the education of the population of a particular state can help with planning by the government
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+Creating a variable q1 which consists of the summary of all the people grouped by their income, who have a high blood pressure and have a sleep of less than 6 hours
+```{r create_q1}
+q1 <- brfss2013 %>%
+  filter(bphigh4 == "Yes",sleptim1<6,!is.na(income2)) %>%
+  group_by(income2) %>%
+  summarise(count = n())
+```
+
+Creating a variable q1_total which consists of the summary of the total number of people grouped by their incomeq1
+```{r create_q1_total}
+q1_total <- brfss2013 %>%
+  filter(!is.na(income2)) %>%
+  group_by(income2) %>%
+  summarise(count = n())
+```
+
+Now mutating the variable q1 to have the percentage of the total people from the total population who have a high blood pressure and less sleep time (<6 hours)
+```{r mutating_q1}
+q1 <- q1 %>%
+  mutate(percentage = q1$count/q1_total$count)
+
+```
+
+Final View of the variable q1:
+```{r view_q1}
+q1
+```
+
+Finally having a graphical view of the observations :
+```{r graph_q1}
+ggplot(q1, aes(x = income2, y = percentage)) + geom_count()
+```
+
+From this we can clearly interpret that there is a rapid decline in the percentage of people who have a high blood pressure and less comfortable sleep with the increase in income, therefore there is definitely an association between them.
+
+**Research quesion 2:**
+
+I first mutated the orignal brfss2013 data and added a column "exer" which holds a zero if a person does not excercise and a one if he/she does
+```{r mutate_exer}
+brfss2013 <- brfss2013 %>%
+  mutate(exer = ifelse(exerany2=="Yes",1,0))
+```
+
+Then created a variable q2 whoch holds the data of people grouped by their physical health level, subject to condition that they excercised. Also they it has the data of the mean, median, standard deviation and the IQR of the amount of time they excised in hours in the past month.
+```{r create_q2}
+q2 <- brfss2013 %>%
+  filter(!is.na(genhlth),!is.na(exer),!is.na(exerhmm1)) %>%
+  group_by(genhlth) %>%
+  summarise(count = n(),mean_dd = mean(exerhmm1),median_dd = median(exerhmm1), sd_dd = sd(exerhmm1),iqr_dd = IQR(exerhmm1))
+```
+
+Now viewing the table q2 formed
+```{r q2_display}
+q2
+```
+
+Graphical Representation
+```{r graph_q2}
+ggplot(data = q2, aes(x=genhlth,y=mean_dd)) + geom_jitter()
+```
+
+As clearly seen the mean exercise decreases with decrease in health, there is definitely an association between the two
+
+
+
+**Research quesion 3:**
+
+First creating a variable q3 which holds the data grouped by education for the state of California 
+```{r create_q3_cali}
+q3_cali <- brfss2013 %>%
+  filter(!is.na(educa), X_state == "California") %>%
+  group_by(educa) %>%
+  summarise(count = n())
+```
+
+Viewing the table formed
+```{r view_q3}
+q3_cali
+```
+
+Mutating Cali to show the percentage of the level of education in California, (total number of people who have listed their education in the survey are 11327) :
+```{r mutate_q3cali}
+q3_cali <- q3_cali %>%
+  mutate(per = q3_cali$count/11327)
+
+q3_cali
+```
+
+Repaeating the Processs for the state of Texas :
+
+Creating variable q3_tex
+```{r create_q3_tex}
+q3_tex <- brfss2013 %>%
+  filter(!is.na(educa), X_state == "Texas") %>%
+  group_by(educa) %>%
+  summarise(count = n())
+
+q3_tex
+```
+
+Mutating Texas :
+```{r mutate_q3tex}
+q3_tex <- q3_tex %>%
+  mutate(per = q3_tex$count/10866)
+
+q3_tex
+```
+
+The plots realted to them are :
+
+```{r plot_q3cali}
+ggplot(data = q3_cali, aes(x = educa, y = per)) + geom_bar(stat = "identity")
+```
+
+```{r plot_q3tex}
+ggplot(data = q3_tex, aes(x = educa, y = per)) + geom_bar(stat = "identity")
+```
+
+It shows that there are more higlhly educated people in the state of California
+With a larger population going to College 
